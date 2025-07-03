@@ -62,7 +62,9 @@ function removeVietnameseTones(str) {
 const PAGE_SIZE = 10;
 
 function App() {
-  const location = typeof window !== 'undefined' ? window.location : { search: '' };
+  const location = React.useMemo(() => (
+    typeof window !== 'undefined' ? window.location : { search: '', pathname: '' }
+  ), []);
   const navigate = (url) => { if (typeof window !== 'undefined') window.history.pushState({}, '', url); };
   const [rawData, setRawData] = useState([]);
   const [search, setSearch] = useState("");
@@ -158,7 +160,8 @@ function App() {
       if (s) setSearch(s);
       if (t) setSelectedTinh(t);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
 
   // Đặt lại trang về 1 khi tìm kiếm
   useEffect(() => {
@@ -169,7 +172,8 @@ function App() {
     if (search) params.set('search', search);
     if (selectedTinh) params.set('tinh', selectedTinh);
     navigate(params.toString() ? `?${params.toString()}` : location.pathname);
-  }, [search, selectedTinh, searchResult]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, selectedTinh, searchResult, location.pathname]);
 
   // Tìm kiếm nâng cao: có dấu hoặc không dấu, tìm cả tên cũ và mới, lọc theo tỉnh
   useEffect(() => {
