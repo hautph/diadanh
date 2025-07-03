@@ -1,9 +1,52 @@
 import React, { useEffect, useState } from "react";
-
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { FaSearch, FaFileExcel, FaMapMarkerAlt, FaRegBuilding, FaRegAddressCard, FaCity, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronRight as FaRight, FaSitemap } from "react-icons/fa";
 import "./App.css";
+
+// CSS dark mode & responsive (inline, có thể chuyển sang file riêng)
+const darkStyle = `
+body.dark-mode, .dark-mode {
+  background: #181a1b !important;
+  color: #e0e0e0 !important;
+}
+.dark-mode input, .dark-mode select, .dark-mode textarea {
+  background: #23272a !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+.dark-mode table {
+  background: #23272a !important;
+  color: #e0e0e0 !important;
+}
+.dark-mode th, .dark-mode td {
+  border-color: #333 !important;
+}
+.dark-mode .fav-btn {
+  background: none !important;
+  border: none !important;
+  color: #ff5e5e !important;
+}
+@media (max-width: 700px) {
+  .main-wrap {
+    padding: 6px !important;
+    max-width: 100vw !important;
+  }
+  .search-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+  .search-row input {
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+  .search-row select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+`;
 
 // Hàm loại bỏ dấu tiếng Việt
 function removeVietnameseTones(str) {
@@ -32,6 +75,56 @@ function App() {
   const [totalPage, setTotalPage] = useState(1);
   const [treeOpen, setTreeOpen] = useState({}); // {tinh: true/false, huyen: true/false}
   const [selectedXa, setSelectedXa] = useState(null); // xã được chọn từ cây
+  // Dark mode state
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('diadanh_dark') === '1';
+    }
+    return false;
+  });
+  // Tab: 0 = tra cứu, 1 = yêu thích
+  const [tab, setTab] = useState(0);
+  // Yêu thích: lưu vào localStorage, hiển thị ở bảng và chi tiết
+  const [favorites, setFavorites] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return JSON.parse(localStorage.getItem('diadanh_fav') || '[]');
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+  // Thêm/xóa yêu thích
+  const toggleFavorite = (item) => {
+    const key = item["Tên Phường/Xã mới"] + '|' + item["Tên tỉnh/TP mới"];
+    setFavorites(prev => {
+      let newFav;
+      if (prev.some(f => f.key === key)) {
+        newFav = prev.filter(f => f.key !== key);
+      } else {
+        newFav = [{ key, item }, ...prev].slice(0, 100);
+      }
+      localStorage.setItem('diadanh_fav', JSON.stringify(newFav));
+      return newFav;
+    });
+  };
+  // Lấy danh sách xã/phường yêu thích (dạng mảng item)
+  const favList = favorites.map(f => f.item);
+
+  // Thêm style dark mode vào head nếu dark = true
+  useEffect(() => {
+    let styleTag = document.getElementById('dark-mode-style');
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'dark-mode-style';
+      document.head.appendChild(styleTag);
+    }
+    styleTag.innerHTML = dark ? darkStyle : '';
+    if (dark) document.body.classList.add('dark-mode');
+    else document.body.classList.remove('dark-mode');
+    localStorage.setItem('diadanh_dark', dark ? '1' : '0');
+  }, [dark]);
 
   // Đọc file JSON từ public
   useEffect(() => {
@@ -201,100 +294,143 @@ function App() {
     return tinhMap;
   }, [rawData]);
 
+  // RETURN DUY NHẤT, JSX CHUẨN HÓA
   return (
-    <div style={{ padding: 20, maxWidth: 900, margin: "auto", fontFamily: 'Segoe UI, Arial, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <FaMapMarkerAlt size={36} color="#2b7a78" />
-          <h1 style={{ color: '#2b7a78', margin: 0 }}>Tra cứu Địa danh Việt Nam</h1>
-        </div>
-        <div style={{ fontSize: 13, color: '#888', textAlign: 'right' }}>
-          © {new Date().getFullYear()} <a href="https://phongtuc.vn" target="_blank" rel="noopener noreferrer" style={{ color: '#3aafa9', textDecoration: 'none', fontWeight: 600 }}>Phong Tục</a>
-        </div>
+    <>
+      {/* SEO META TAGS */}
+      <head>
+        <title>Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, huyện quận, tỉnh thành</title>
+        <meta name="description" content="Tra cứu địa danh Việt Nam: xã, phường, huyện, quận, tỉnh, thành phố. Tìm kiếm nhanh, xuất Excel, lưu yêu thích. Dữ liệu hành chính mới nhất 2025." />
+        <meta name="keywords" content="tra cứu địa danh, xã phường, huyện quận, tỉnh thành, địa danh Việt Nam, xuất excel, tìm kiếm địa danh, dữ liệu hành chính, hành chính Việt Nam, địa giới hành chính, địa chỉ, tra cứu xã phường, bản đồ hành chính, địa danh 2025" />
+      </head>
+      <div className="main-wrap" style={{ maxWidth: 900, margin: '0 auto', padding: 0, background: dark ? '#181a1b' : '#f9f9f9', borderRadius: 18, boxShadow: '0 4px 32px #0002', overflow: 'hidden' }}>
+        {/* HEADER HIỆN ĐẠI */}
+        <header style={{
+          background: dark ? 'linear-gradient(90deg,#23272a 60%,#3aafa9 100%)' : 'linear-gradient(90deg,#e6f2f2 60%,#3aafa9 100%)',
+          padding: '32px 32px 24px 32px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 28,
+          borderBottom: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}`,
+          boxShadow: dark ? '0 2px 12px #0004' : '0 2px 12px #3aafa933',
+          flexWrap: 'wrap',
+          position: 'relative'
+        }}>
+          <img src="/logo192.png" alt="logo" style={{ width: 70, height: 70, borderRadius: 18, background: '#fff', boxShadow: '0 2px 12px #0002', border: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}` }} />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <h1 style={{ margin: 0, color: dark ? '#3aafa9' : '#2b7a78', fontSize: 36, fontWeight: 900, letterSpacing: 0.5, lineHeight: 1.1, textShadow: dark ? '0 2px 8px #0008' : '0 2px 8px #3aafa933' }}>Tra cứu Địa danh Việt Nam</h1>
+            <div style={{ color: dark ? '#eee' : '#333', fontSize: 18, marginTop: 8, fontWeight: 500, textShadow: dark ? '0 1px 4px #0006' : 'none' }}>
+              Tìm kiếm xã, phường, tỉnh, thành phố. Dữ liệu hành chính mới nhất, xuất Excel, lưu yêu thích.
+            </div>
+          </div>
+          <div style={{ position: 'absolute', right: 32, top: 32, fontSize: 15, color: dark ? '#aaa' : '#2b7a78', fontWeight: 600, letterSpacing: 0.2 }}>
+            <span style={{ background: dark ? '#3aafa9' : '#e6f2f2', color: dark ? '#222' : '#2b7a78', borderRadius: 8, padding: '4px 12px' }}>
+              Dữ liệu cập nhật 2025
+            </span>
+          </div>
+        </header>
+        {/* KHUNG TÌM KIẾM VÀ GỢI Ý */}
+      <div className="search-row" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="Nhập tên xã/phường, huyện/quận, tỉnh/thành..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 220, padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
+          autoFocus
+          list="suggestions-list"
+        />
+        <datalist id="suggestions-list">
+          {suggestions.map((s, i) => <option value={s} key={i} />)}
+        </datalist>
+        <select
+          value={selectedTinh}
+          onChange={e => setSelectedTinh(e.target.value)}
+          style={{ minWidth: 140, padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
+        >
+          <option value="">-- Tất cả tỉnh/thành --</option>
+          {tinhList.map(tinh => <option key={tinh} value={tinh}>{tinh}</option>)}
+        </select>
+        <button
+          onClick={() => setTab(0)}
+          style={{ background: tab === 0 ? (dark ? '#3aafa9' : '#2b7a78') : '#eee', color: tab === 0 ? '#fff' : '#222', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          Tra cứu
+        </button>
+        <button
+          onClick={() => setTab(1)}
+          style={{ background: tab === 1 ? (dark ? '#3aafa9' : '#2b7a78') : '#eee', color: tab === 1 ? '#fff' : '#222', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}
+        >
+          Yêu thích
+        </button>
+        <button
+          onClick={() => setDark(d => !d)}
+          style={{ marginLeft: 8, background: dark ? '#222' : '#eee', color: dark ? '#fff' : '#222', border: 'none', borderRadius: 6, padding: '8px 12px', cursor: 'pointer' }}
+          title="Chuyển chế độ sáng/tối"
+        >
+          {dark ? '🌙' : '☀️'}
+        </button>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-      {/* Lịch sử tra cứu */}
-      {history.length > 0 && (
-        <div style={{ marginBottom: 10, fontSize: 14, color: '#888', width: '100%' }}>
-          <span style={{ fontWeight: 600 }}>Lịch sử tra cứu:</span>
-          {history.map((h, i) => (
-            <button key={i} style={{ margin: '0 6px 6px 0', background: '#f0f0f0', border: '1px solid #ccc', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}
-              onClick={() => setSearch(h)}>{h}</button>
-          ))}
+      {/* GỢI Ý AUTOCOMPLETE */}
+      {search.length > 0 && suggestions.length > 0 && (
+        <div style={{ background: dark ? '#23272a' : '#fff', border: '1px solid #ccc', borderRadius: 6, marginBottom: 16, padding: 8, maxWidth: 400 }}>
+          <div style={{ color: dark ? '#aaa' : '#888', marginBottom: 4, fontSize: 14 }}>Gợi ý:</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {suggestions.map((s, i) => (
+              <span key={i} style={{ background: dark ? '#3aafa9' : '#e6f2f2', color: dark ? '#222' : '#2b7a78', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 15 }}
+                onClick={() => setSearch(s)}>{s}</span>
+            ))}
+          </div>
         </div>
       )}
-        <FaSearch color="#3aafa9" size={22} />
-        <div style={{ position: 'relative' }}>
-          <input
-            placeholder="Nhập tên phường/xã, huyện, tỉnh... (có dấu hoặc không dấu, cũ hoặc mới)"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: 350, fontSize: 18, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
-            autoComplete="off"
-          />
-          {suggestions.length > 0 && (
-            <ul style={{ position: 'absolute', top: 38, left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: 6, zIndex: 10, maxHeight: 180, overflowY: 'auto', margin: 0, padding: 0 }}>
-              {suggestions.map((s, i) => (
-                <li key={i} style={{ padding: 8, cursor: 'pointer', listStyle: 'none', borderBottom: '1px solid #eee' }}
-                  onClick={() => { setSearch(s); setSuggestions([]); }}
-                >{s}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <select value={selectedTinh} onChange={e => setSelectedTinh(e.target.value)} style={{ fontSize: 16, padding: 8, borderRadius: 6, border: '1px solid #ccc', minWidth: 160 }}>
-          <option value="">-- Lọc theo tỉnh/thành --</option>
-          {tinhList.map(tinh => (
-            <option key={tinh} value={tinh}>{tinh}</option>
-          ))}
-        </select>
-        {selectedTinh && (
-          <button onClick={() => setSelectedTinh("")} style={{ marginLeft: 4, background: '#eee', border: 'none', borderRadius: 4, padding: '6px 10px', cursor: 'pointer' }}>Xóa lọc</button>
-        )}
-      </div>
-      {(!search || search.length <= 1) && (
+      {tab === 0 && (!search || search.length <= 1) && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: '#3aafa9', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><FaSitemap />Danh sách 34 Tỉnh/Thành phố</h3>
-          <div style={{ background: '#f8f8f8', borderRadius: 8, padding: 16 }}>
-            {tinhList.map((tinh, idx) => (
-              <div key={tinh}>
-                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 600, fontSize: 17, color: '#2b7a78', margin: '6px 0' }} onClick={() => handleToggle(tinh)}>
-                  {treeOpen[tinh] ? <FaChevronDown /> : <FaRight />} <FaCity color="#3aafa9" style={{ marginRight: 6 }} /> {tinh}
+          <div style={{ background: dark ? '#23272a' : '#f8f8f8', borderRadius: 10, padding: 18, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911' }}>
+            {tinhList.map((tinh) => (
+              <div key={tinh} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 700, fontSize: 18, color: dark ? '#3aafa9' : '#2b7a78', margin: '8px 0', borderRadius: 6, padding: '6px 10px', transition: 'background 0.2s', background: selectedTinh === tinh ? (dark ? '#3aafa933' : '#e6f2f2') : 'none' }}
+                  onClick={() => { setSelectedTinh(tinh); setTab(0); setSelectedXa(null); }}
+                >
+                  <FaCity color="#3aafa9" style={{ marginRight: 8 }} /> {tinh}
                 </div>
-                {treeOpen[tinh] && (
-                  <div style={{ marginLeft: 32, marginTop: 4, marginBottom: 8 }}>
-                    {treeData[tinh] && Object.keys(treeData[tinh]).sort().map(huyen => (
-                      <div key={huyen}>
-                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#3aafa9', fontWeight: 500, fontSize: 15, margin: '4px 0' }} onClick={() => handleToggle(tinh + '-' + huyen)}>
-                          {treeOpen[tinh + '-' + huyen] ? <FaChevronDown /> : <FaRight />} <FaRegBuilding style={{ marginRight: 6 }} /> {huyen}
-                        </div>
-                        {treeOpen[tinh + '-' + huyen] && (
-                          <ul style={{ marginLeft: 32, marginTop: 2, marginBottom: 2, paddingLeft: 0 }}>
-                            {treeData[tinh][huyen].sort().map(xa => (
-                              <li key={xa} style={{ listStyle: 'none', color: '#222', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0', cursor: 'pointer' }}
-                                onClick={() => handleSelectXa(tinh, huyen, xa)}
-                              >
-                                <FaRegAddressCard color="#888" /> {xa}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                {/* Hiển thị danh sách xã trực tiếp dưới tỉnh */}
+                {selectedTinh === tinh && treeData[tinh] && (
+                  <ul style={{ marginLeft: 32, marginTop: 6, marginBottom: 6, paddingLeft: 0 }}>
+                    {Object.keys(treeData[tinh]).sort().flatMap(huyen =>
+                      treeData[tinh][huyen].sort().map(xa => (
+                        <li key={xa} style={{ listStyle: 'none', color: dark ? '#eee' : '#222', fontSize: 15, display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0', cursor: 'pointer', borderRadius: 4, padding: '2px 8px', transition: 'background 0.2s', background: selectedXa && selectedXa["Tên Phường/Xã mới"] === xa ? (dark ? '#3aafa955' : '#e6f2f2') : 'none' }}
+                          onClick={() => handleSelectXa(tinh, huyen, xa)}
+                        >
+                          <FaRegAddressCard color="#888" /> {xa}
+                        </li>
+                      ))
+                    )}
+                  </ul>
                 )}
               </div>
             ))}
           </div>
         </div>
       )}
-      {/* Nếu selectedXa có giá trị, hiển thị bảng chi tiết xã/phường đã chọn ở trên bảng kết quả */}
-      {selectedXa && (
-        <div style={{ marginBottom: 16, color: '#888' }}>
-          <div style={{ fontWeight: 600, color: '#2b7a78', marginBottom: 8 }}>Thông tin chi tiết xã/phường đã chọn:</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
+      {/* Chi tiết tỉnh/thành phố đã chọn */}
+      {tab === 0 && selectedTinh && !selectedXa && (
+        <div style={{ marginBottom: 18, background: dark ? '#23272a' : '#e6f2f2', borderRadius: 8, padding: 18, color: dark ? '#3aafa9' : '#2b7a78', fontWeight: 600, fontSize: 18, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911' }}>
+          <FaCity style={{ marginRight: 8 }} /> Thông tin tỉnh/thành phố: <span style={{ fontWeight: 800 }}>{selectedTinh}</span>
+        </div>
+      )}
+      {/* Chi tiết xã/phường đã chọn */}
+      {tab === 0 && selectedXa && (
+        <div style={{ marginBottom: 16, color: dark ? '#aaa' : '#888' }}>
+          <div style={{ fontWeight: 600, color: dark ? '#3aafa9' : '#2b7a78', marginBottom: 8 }}>
+            Thông tin chi tiết xã/phường đã chọn:
+            <button className="fav-btn" onClick={() => toggleFavorite(selectedXa)} style={{ marginLeft: 10, fontSize: 20, cursor: 'pointer', background: 'none', border: 'none' }} title="Yêu thích">
+              {favorites.some(f => f.key === (selectedXa["Tên Phường/Xã mới"] + '|' + selectedXa["Tên tỉnh/TP mới"])) ? '❤️' : '🤍'}
+            </button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: dark ? '#23272a' : '#fff' }}>
             <thead>
-              <tr style={{ background: '#e6f2f2' }}>
+              <tr style={{ background: dark ? '#223' : '#e6f2f2' }}>
                 <th style={{ padding: 8, border: '1px solid #ddd' }}>Thông tin mới</th>
                 <th style={{ padding: 8, border: '1px solid #ddd' }}>Thông tin cũ</th>
               </tr>
@@ -306,7 +442,7 @@ function App() {
                   {selectedXa["Tên tỉnh/TP mới"] && <span><FaCity color="#3aafa9" style={{ marginRight: 3 }} />Tỉnh/TP: {selectedXa["Tên tỉnh/TP mới"]}<br /></span>}
                   {selectedXa["Mã phường/xã mới "] && <span>Mã xã: {selectedXa["Mã phường/xã mới "]}</span>}
                 </td>
-                <td style={{ padding: 8, border: '1px solid #eee', color: '#555' }}>
+                <td style={{ padding: 8, border: '1px solid #eee', color: dark ? '#ccc' : '#555' }}>
                   {(selectedXa["Tên Phường/Xã cũ"] || selectedXa["Tên Quận huyện TMS (cũ)"] || selectedXa["Tên tỉnh/TP cũ"] || selectedXa["Mã phường/xã cũ"] || selectedXa["Mã Quận huyện TMS (cũ)"]) ? (
                     <div>
                       {selectedXa["Tên Phường/Xã cũ"] && <><b>{selectedXa["Tên Phường/Xã cũ"]}</b><br /></>}
@@ -322,73 +458,146 @@ function App() {
           </table>
         </div>
       )}
-      {/* ...existing code bảng kết quả tìm kiếm và phân trang... */}
-      {search && search.length > 1 && (
+      {/* Bảng kết quả tìm kiếm và phân trang */}
+      {tab === 0 && search && search.length > 1 && (
         <>
-          <div style={{ marginBottom: 16, color: '#888' }}>
+          <div style={{ marginBottom: 16, color: dark ? '#aaa' : '#888' }}>
             Kết quả: {searchResult.length} địa danh{search.length > 1 ? '' : ' (toàn bộ dữ liệu)'}
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', background: dark ? '#23272a' : '#fff' }}>
               <thead>
-                <tr style={{ background: '#e6f2f2' }}>
+                <tr style={{ background: dark ? '#223' : '#e6f2f2' }}>
                   <th style={{ padding: 8, border: '1px solid #ddd' }}>#</th>
                   <th style={{ padding: 8, border: '1px solid #ddd' }}>Thông tin mới</th>
                   <th style={{ padding: 8, border: '1px solid #ddd' }}>Thông tin cũ</th>
+                  <th style={{ padding: 8, border: '1px solid #ddd' }}>Yêu thích</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedData.map((item, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: 8, border: '1px solid #eee', textAlign: 'center' }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                    <td style={{ padding: 8, border: '1px solid #eee' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <FaRegAddressCard color="#2b7a78" />
-                        <div>
-                          <b>{item["Tên Phường/Xã mới"]}</b><br />
-                          {item["Tên tỉnh/TP mới"] && <span><FaCity color="#3aafa9" style={{ marginRight: 3 }} />Tỉnh/TP: {item["Tên tỉnh/TP mới"]}<br /></span>}
-                          {item["Mã phường/xã mới "] && <span>Mã xã: {item["Mã phường/xã mới "]}</span>}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: 8, border: '1px solid #eee', color: '#555' }}>
-                      {(item["Tên Phường/Xã cũ"] || item["Tên Quận huyện TMS (cũ)"] || item["Tên tỉnh/TP cũ"] || item["Mã phường/xã cũ"] || item["Mã Quận huyện TMS (cũ)"]) ? (
+                {pagedData.map((item, idx) => {
+                  const favKey = item["Tên Phường/Xã mới"] + '|' + item["Tên tỉnh/TP mới"];
+                  return (
+                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: 8, border: '1px solid #eee', textAlign: 'center' }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                      <td style={{ padding: 8, border: '1px solid #eee' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <FaRegAddressCard color="#b23b3b" />
+                          <FaRegAddressCard color="#2b7a78" />
                           <div>
-                            {item["Tên Phường/Xã cũ"] && <><b>{item["Tên Phường/Xã cũ"]}</b><br /></>}
-                            {item["Tên Quận huyện TMS (cũ)"] && <span><FaRegBuilding color="#b23b3b" style={{ marginRight: 3 }} />Huyện/Quận: {item["Tên Quận huyện TMS (cũ)"]}<br /></span>}
-                            {item["Mã Quận huyện TMS (cũ)"] && <span>Mã Quận huyện TMS (cũ): {item["Mã Quận huyện TMS (cũ)"]}<br /></span>}
-                            {item["Tên tỉnh/TP cũ"] && <span><FaCity color="#b23b3b" style={{ marginRight: 3 }} />Tỉnh/TP: {item["Tên tỉnh/TP cũ"]}<br /></span>}
-                            {item["Mã phường/xã cũ"] && <span>Mã xã: {item["Mã phường/xã cũ"]}</span>}
+                            <b>{item["Tên Phường/Xã mới"]}</b><br />
+                            {item["Tên tỉnh/TP mới"] && <span><FaCity color="#3aafa9" style={{ marginRight: 3 }} />Tỉnh/TP: {item["Tên tỉnh/TP mới"]}<br /></span>}
+                            {item["Mã phường/xã mới "] && <span>Mã xã: {item["Mã phường/xã mới "]}</span>}
                           </div>
                         </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={{ padding: 8, border: '1px solid #eee', color: dark ? '#ccc' : '#555' }}>
+                        {(item["Tên Phường/Xã cũ"] || item["Tên Quận huyện TMS (cũ)"] || item["Tên tỉnh/TP cũ"] || item["Mã phường/xã cũ"] || item["Mã Quận huyện TMS (cũ)"]) ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <FaRegAddressCard color="#b23b3b" />
+                            <div>
+                              {item["Tên Phường/Xã cũ"] && <><b>{item["Tên Phường/Xã cũ"]}</b><br /></>}
+                              {item["Tên Quận huyện TMS (cũ)"] && <span><FaRegBuilding color="#b23b3b" style={{ marginRight: 3 }} />Huyện/Quận: {item["Tên Quận huyện TMS (cũ)"]}<br /></span>}
+                              {item["Mã Quận huyện TMS (cũ)"] && <span>Mã Quận huyện TMS (cũ): {item["Mã Quận huyện TMS (cũ)"]}<br /></span>}
+                              {item["Tên tỉnh/TP cũ"] && <span><FaCity color="#b23b3b" style={{ marginRight: 3 }} />Tỉnh/TP: {item["Tên tỉnh/TP cũ"]}<br /></span>}
+                              {item["Mã phường/xã cũ"] && <span>Mã xã: {item["Mã phường/xã cũ"]}</span>}
+                            </div>
+                          </div>
+                        ) : null}
+                      </td>
+                      <td style={{ padding: 8, border: '1px solid #eee', textAlign: 'center' }}>
+                        <button className="fav-btn" onClick={() => toggleFavorite(item)} style={{ fontSize: 20, cursor: 'pointer', background: 'none', border: 'none' }} title="Yêu thích">
+                          {favorites.some(f => f.key === favKey) ? '❤️' : '🤍'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           {totalPage > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, margin: '24px 0' }}>
-              <button onClick={() => setPage(page - 1)} disabled={page === 1} style={{ background: '#eee', border: 'none', borderRadius: 4, padding: 6, cursor: page === 1 ? 'not-allowed' : 'pointer' }}><FaChevronLeft /></button>
+              <button onClick={() => setPage(page - 1)} disabled={page === 1} style={{ background: dark ? '#23272a' : '#eee', border: 'none', borderRadius: 4, padding: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', color: dark ? '#fff' : '#222' }}><FaChevronLeft /></button>
               <span style={{ fontSize: 16 }}>Trang {page} / {totalPage}</span>
-              <button onClick={() => setPage(page + 1)} disabled={page === totalPage} style={{ background: '#eee', border: 'none', borderRadius: 4, padding: 6, cursor: page === totalPage ? 'not-allowed' : 'pointer' }}><FaChevronRight /></button>
+              <button onClick={() => setPage(page + 1)} disabled={page === totalPage} style={{ background: dark ? '#23272a' : '#eee', border: 'none', borderRadius: 4, padding: 6, cursor: page === totalPage ? 'not-allowed' : 'pointer', color: dark ? '#fff' : '#222' }}><FaChevronRight /></button>
             </div>
           )}
         </>
       )}
-      {searchResult.length === 0 && rawData.length > 0 && search.length > 1 && (
+      {tab === 0 && searchResult.length === 0 && rawData.length > 0 && search.length > 1 && (
         <div style={{ color: '#b23b3b', marginTop: 20 }}>Không tìm thấy kết quả phù hợp.</div>
       )}
-      <button
-        onClick={exportExcel}
-        style={{ marginTop: 32, background: '#3aafa9', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 18px', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-      >
-        <FaFileExcel /> Xuất Excel toàn bộ dữ liệu
-      </button>
-    </div>
+      {/* Tab yêu thích: hiển thị danh sách xã/phường đã lưu */}
+      {tab === 1 && (
+        <div style={{ marginTop: 16 }}>
+          <h3 style={{ color: dark ? '#3aafa9' : '#2b7a78', marginBottom: 10 }}>Danh sách xã/phường yêu thích ({favList.length})</h3>
+          {favList.length === 0 ? (
+            <div style={{ color: '#888' }}>Chưa có xã/phường nào được đánh dấu yêu thích.</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: dark ? '#23272a' : '#fff' }}>
+                <thead>
+                  <tr style={{ background: dark ? '#223' : '#e6f2f2' }}>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>#</th>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>Tên Phường/Xã</th>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>Tỉnh/TP</th>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>Mã xã</th>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>Xem chi tiết</th>
+                    <th style={{ padding: 8, border: '1px solid #ddd' }}>Bỏ yêu thích</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {favList.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: 8, border: '1px solid #eee', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ padding: 8, border: '1px solid #eee' }}>{item["Tên Phường/Xã mới"]}</td>
+                      <td style={{ padding: 8, border: '1px solid #eee' }}>{item["Tên tỉnh/TP mới"]}</td>
+                      <td style={{ padding: 8, border: '1px solid #eee' }}>{item["Mã phường/xã mới "]}</td>
+                      <td style={{ padding: 8, border: '1px solid #eee' }}>
+                        <button onClick={() => { setTab(0); setSelectedXa(item); }} style={{ background: dark ? '#3aafa9' : '#2b7a78', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}>Chi tiết</button>
+                      </td>
+                      <td style={{ padding: 8, border: '1px solid #eee', textAlign: 'center' }}>
+                        <button className="fav-btn" onClick={() => toggleFavorite(item)} style={{ fontSize: 20, cursor: 'pointer', background: 'none', border: 'none' }} title="Bỏ yêu thích">❤️</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+        <button
+          onClick={exportExcel}
+          style={{ marginTop: 32, background: dark ? '#3aafa9' : '#3aafa9', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 22px', fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, boxShadow: '0 2px 8px #0001' }}
+        >
+          <FaFileExcel /> Xuất Excel toàn bộ dữ liệu
+        </button>
+        {/* FOOTER HIỆN ĐẠI */}
+        <footer style={{
+          marginTop: 56,
+          textAlign: 'center',
+          color: dark ? '#aaa' : '#2b7a78',
+          fontSize: 16,
+          borderTop: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}`,
+          paddingTop: 28,
+          letterSpacing: 0.2,
+          background: dark ? 'linear-gradient(90deg,#23272a 60%,#3aafa9 100%)' : 'linear-gradient(90deg,#e6f2f2 60%,#3aafa9 100%)',
+          fontWeight: 600,
+          boxShadow: dark ? '0 -2px 12px #0004' : '0 -2px 12px #3aafa933',
+          borderBottomLeftRadius: 18,
+          borderBottomRightRadius: 18
+        }}>
+          <div style={{ marginBottom: 6 }}>
+            © {new Date().getFullYear()} <span style={{ fontWeight: 900 }}>Tra cứu Địa danh Việt Nam</span>
+          </div>
+          <div style={{ fontSize: 15, color: dark ? '#eee' : '#222', fontWeight: 400 }}>
+            Dữ liệu hành chính cập nhật 2025. Thiết kế bởi
+            <a href="https://github.com/hautp" target="_blank" rel="noopener noreferrer" style={{ color: dark ? '#fff' : '#2b7a78', textDecoration: 'underline', fontWeight: 700, marginLeft: 6 }}>hautp</a>.
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }
 
