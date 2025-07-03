@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { FaSearch, FaFileExcel, FaMapMarkerAlt, FaRegBuilding, FaRegAddressCard, FaCity, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronRight as FaRight, FaSitemap } from "react-icons/fa";
+import { FaFileExcel, FaRegAddressCard, FaCity, FaChevronLeft, FaChevronRight, FaSitemap, FaHome, FaRegBuilding } from "react-icons/fa";
 import "./App.css";
 
 // CSS dark mode & responsive (inline, có thể chuyển sang file riêng)
@@ -66,14 +66,14 @@ function App() {
   const navigate = (url) => { if (typeof window !== 'undefined') window.history.pushState({}, '', url); };
   const [rawData, setRawData] = useState([]);
   const [search, setSearch] = useState("");
-  const [history, setHistory] = useState([]); // Lịch sử tra cứu
+  // Đã loại bỏ state history/setHistory vì không dùng
   const [selectedTinh, setSelectedTinh] = useState(""); // Lọc nâng cao theo tỉnh
   const [suggestions, setSuggestions] = useState([]); // Gợi ý autocomplete
   const [searchResult, setSearchResult] = useState([]);
   const [tinhList, setTinhList] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPage, setTotalPage] = useState(1);
-  const [treeOpen, setTreeOpen] = useState({}); // {tinh: true/false, huyen: true/false}
+  // const [treeOpen, setTreeOpen] = useState({}); // {tinh: true/false, huyen: true/false} (không dùng)
   const [selectedXa, setSelectedXa] = useState(null); // xã được chọn từ cây
   // Dark mode state
   const [dark, setDark] = useState(() => {
@@ -146,9 +146,7 @@ function App() {
         });
         setTinhList(Array.from(tinhSet).sort());
       });
-    // Đọc lịch sử từ localStorage
-    const h = localStorage.getItem('diadanh_history');
-    if (h) setHistory(JSON.parse(h));
+    // Đã loại bỏ đọc lịch sử từ localStorage (không dùng nữa)
   }, []);
 
   // Đọc query string khi load trang (chia sẻ link)
@@ -165,19 +163,7 @@ function App() {
   // Đặt lại trang về 1 khi tìm kiếm
   useEffect(() => {
     setPage(1); // reset page khi search
-    // Lưu lịch sử tra cứu chỉ khi có kết quả thực sự và có thông tin phường/xã
-    if (
-      search &&
-      search.length > 1 &&
-      searchResult.length > 0 &&
-      searchResult.every(item => (item["Tên Phường/Xã mới"] && item["Tên Phường/Xã mới"].trim()) || (item["Tên Phường/Xã cũ"] && item["Tên Phường/Xã cũ"].trim()))
-    ) {
-      setHistory(prev => {
-        const newHist = [search, ...prev.filter(x => x !== search)].slice(0, 10);
-        localStorage.setItem('diadanh_history', JSON.stringify(newHist));
-        return newHist;
-      });
-    }
+    // Đã loại bỏ lưu lịch sử tra cứu (setHistory)
     // Cập nhật URL khi search
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -261,10 +247,9 @@ function App() {
   // Lấy dữ liệu trang hiện tại
   const pagedData = searchResult.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Cây địa danh: tỉnh -> huyện -> xã
-  const handleToggle = (key) => {
-    setTreeOpen(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  // const handleToggle = (key) => {
+  //   setTreeOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  // };
 
   // Khi click vào xã trong cây, chỉ hiển thị chi tiết xã ở khung riêng, không reset search/searchResult
   const handleSelectXa = (tinh, huyen, xa) => {
@@ -307,24 +292,40 @@ function App() {
         {/* HEADER HIỆN ĐẠI */}
         <header style={{
           background: dark ? 'linear-gradient(90deg,#23272a 60%,#3aafa9 100%)' : 'linear-gradient(90deg,#e6f2f2 60%,#3aafa9 100%)',
-          padding: '32px 32px 24px 32px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 28,
+          padding: '28px 32px 20px 32px',
           borderBottom: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}`,
           boxShadow: dark ? '0 2px 12px #0004' : '0 2px 12px #3aafa933',
-          flexWrap: 'wrap',
-          position: 'relative'
         }}>
-          <img src="/logo192.png" alt="logo" style={{ width: 70, height: 70, borderRadius: 18, background: '#fff', boxShadow: '0 2px 12px #0002', border: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}` }} />
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <h1 style={{ margin: 0, color: dark ? '#3aafa9' : '#2b7a78', fontSize: 36, fontWeight: 900, letterSpacing: 0.5, lineHeight: 1.1, textShadow: dark ? '0 2px 8px #0008' : '0 2px 8px #3aafa933' }}>Tra cứu Địa danh Việt Nam</h1>
-            <div style={{ color: dark ? '#eee' : '#333', fontSize: 18, marginTop: 8, fontWeight: 500, textShadow: dark ? '0 1px 4px #0006' : 'none' }}>
-              Tìm kiếm xã, phường, tỉnh, thành phố. Dữ liệu hành chính mới nhất, xuất Excel, lưu yêu thích.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap' }}>
+            <img src="/logo192.png" alt="logo" style={{ width: 64, height: 64, borderRadius: 16, background: '#fff', boxShadow: '0 2px 12px #0002', border: `3px solid ${dark ? '#3aafa9' : '#2b7a78'}` }} />
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h1 style={{ margin: 0, color: dark ? '#3aafa9' : '#2b7a78', fontSize: 32, fontWeight: 900, letterSpacing: 0.5, lineHeight: 1.1, textShadow: dark ? '0 2px 8px #0008' : '0 2px 8px #3aafa933' }}>Tra cứu Địa danh Việt Nam</h1>
+              <div style={{ color: dark ? '#eee' : '#333', fontSize: 16, marginTop: 6, fontWeight: 500, textShadow: dark ? '0 1px 4px #0006' : 'none' }}>
+                Tìm kiếm xã, phường, tỉnh, thành phố. Dữ liệu mới nhất, lưu yêu thích.
+              </div>
             </div>
           </div>
-          <div style={{ position: 'absolute', right: 32, top: 32, fontSize: 15, color: dark ? '#aaa' : '#2b7a78', fontWeight: 600, letterSpacing: 0.2 }}>
-            <span style={{ background: dark ? '#3aafa9' : '#e6f2f2', color: dark ? '#222' : '#2b7a78', borderRadius: 8, padding: '4px 12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button
+              onClick={() => { setSelectedTinh(""); setSelectedXa(null); setTab(0); setSearch(""); }}
+              style={{ background: dark ? '#3aafa9' : '#2b7a78', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px #0001', minWidth: 120 }}
+              title="Về trang chủ"
+            >
+              <FaHome /> Trang chủ
+            </button>
+            <span style={{
+              background: dark ? '#3aafa9' : '#e6f2f2',
+              color: dark ? '#222' : '#2b7a78',
+              borderRadius: 8,
+              padding: '4px 12px',
+              boxShadow: dark ? '0 1px 6px #0003' : '0 1px 6px #3aafa922',
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: 0.2,
+              textAlign: 'center',
+              display: 'inline-block',
+              marginTop: 2
+            }}>
               Dữ liệu cập nhật 2025
             </span>
           </div>
@@ -383,41 +384,86 @@ function App() {
           </div>
         </div>
       )}
-      {tab === 0 && (!search || search.length <= 1) && (
+      {tab === 0 && (!search || search.length <= 1) && !selectedTinh && (
         <div style={{ marginBottom: 24 }}>
           <h3 style={{ color: '#3aafa9', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><FaSitemap />Danh sách 34 Tỉnh/Thành phố</h3>
           <div style={{ background: dark ? '#23272a' : '#f8f8f8', borderRadius: 10, padding: 18, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911' }}>
-            {tinhList.map((tinh) => (
-              <div key={tinh} style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 700, fontSize: 18, color: dark ? '#3aafa9' : '#2b7a78', margin: '8px 0', borderRadius: 6, padding: '6px 10px', transition: 'background 0.2s', background: selectedTinh === tinh ? (dark ? '#3aafa933' : '#e6f2f2') : 'none' }}
-                  onClick={() => { setSelectedTinh(tinh); setTab(0); setSelectedXa(null); }}
-                >
-                  <FaCity color="#3aafa9" style={{ marginRight: 8 }} /> {tinh}
+            {tinhList.map((tinh) => {
+              // Nhận diện thành phố/tỉnh
+              const tinhNorm = tinh.replace(/\s+/g, '').toLowerCase();
+              const isCity = tinhNorm.startsWith('tp') || tinhNorm.startsWith('thanhpho') || tinhNorm.startsWith('city') || /thànhphố|tp\b|city/i.test(tinh);
+              return (
+                <div key={tinh} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 700, fontSize: 18, color: dark ? '#3aafa9' : '#2b7a78', margin: '8px 0', borderRadius: 6, padding: '6px 10px', transition: 'background 0.2s', background: selectedTinh === tinh ? (dark ? '#3aafa933' : '#e6f2f2') : 'none' }}
+                    onClick={() => { setSelectedTinh(tinh); setTab(0); setSelectedXa(null); }}
+                  >
+                    {isCity ? <FaCity color="#3aafa9" style={{ marginRight: 8 }} title="Thành phố" /> : <FaRegBuilding color="#3aafa9" style={{ marginRight: 8 }} title="Tỉnh" />} {tinh}
+                  </div>
+                  {/* Hiển thị danh sách xã/phường trực tiếp dưới tỉnh/thành */}
+                  {selectedTinh === tinh && treeData[tinh] && (
+                    <ul style={{ marginLeft: 32, marginTop: 6, marginBottom: 6, paddingLeft: 0 }}>
+                      {Object.keys(treeData[tinh]).sort().flatMap(huyen =>
+                        treeData[tinh][huyen].sort().map(xa => {
+                          // Nhận diện xã/phường
+                          const xaNorm = xa.replace(/\s+/g, '').toLowerCase();
+                          const isPhuong = xaNorm.startsWith('phuong') || xaNorm.startsWith('p.') || /phường|phuong|p\./i.test(xa);
+                          const isXa = xaNorm.startsWith('xa') || xaNorm.startsWith('x.') || /xã|xa|x\./i.test(xa);
+                          return (
+                            <li key={xa} style={{ listStyle: 'none', color: dark ? '#eee' : '#222', fontSize: 15, display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0', cursor: 'pointer', borderRadius: 4, padding: '2px 8px', transition: 'background 0.2s', background: selectedXa && selectedXa["Tên Phường/Xã mới"] === xa ? (dark ? '#3aafa955' : '#e6f2f2') : 'none' }}
+                              onClick={() => handleSelectXa(tinh, huyen, xa)}
+                            >
+                              {isPhuong ? <FaHome color="#888" title="Phường" /> : isXa ? <FaRegAddressCard color="#888" title="Xã" /> : <FaRegAddressCard color="#888" title="Xã/Phường" />} {xa}
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
+                  )}
                 </div>
-                {/* Hiển thị danh sách xã trực tiếp dưới tỉnh */}
-                {selectedTinh === tinh && treeData[tinh] && (
-                  <ul style={{ marginLeft: 32, marginTop: 6, marginBottom: 6, paddingLeft: 0 }}>
-                    {Object.keys(treeData[tinh]).sort().flatMap(huyen =>
-                      treeData[tinh][huyen].sort().map(xa => (
-                        <li key={xa} style={{ listStyle: 'none', color: dark ? '#eee' : '#222', fontSize: 15, display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0', cursor: 'pointer', borderRadius: 4, padding: '2px 8px', transition: 'background 0.2s', background: selectedXa && selectedXa["Tên Phường/Xã mới"] === xa ? (dark ? '#3aafa955' : '#e6f2f2') : 'none' }}
-                          onClick={() => handleSelectXa(tinh, huyen, xa)}
-                        >
-                          <FaRegAddressCard color="#888" /> {xa}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
       {/* Chi tiết tỉnh/thành phố đã chọn */}
       {tab === 0 && selectedTinh && !selectedXa && (
-        <div style={{ marginBottom: 18, background: dark ? '#23272a' : '#e6f2f2', borderRadius: 8, padding: 18, color: dark ? '#3aafa9' : '#2b7a78', fontWeight: 600, fontSize: 18, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911' }}>
-          <FaCity style={{ marginRight: 8 }} /> Thông tin tỉnh/thành phố: <span style={{ fontWeight: 800 }}>{selectedTinh}</span>
-        </div>
+        <>
+          <div style={{ marginBottom: 18, background: dark ? '#23272a' : '#e6f2f2', borderRadius: 8, padding: 18, color: dark ? '#3aafa9' : '#2b7a78', fontWeight: 600, fontSize: 18, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911', display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Nút về trang chủ */}
+            <button onClick={() => { setSelectedTinh(""); setSelectedXa(null); setTab(0); setSearch(""); }} style={{ background: dark ? '#3aafa9' : '#2b7a78', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 16px', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginRight: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <FaHome /> Trang chủ
+            </button>
+            {/* Icon tỉnh/thành */}
+            {(() => {
+              const tinhNorm = selectedTinh.replace(/\s+/g, '').toLowerCase();
+              const isCity = tinhNorm.startsWith('tp') || tinhNorm.startsWith('thanhpho') || tinhNorm.startsWith('city') || /thànhphố|tp\b|city/i.test(selectedTinh);
+              return isCity ? <FaCity style={{ marginRight: 8 }} title="Thành phố" /> : <FaRegBuilding style={{ marginRight: 8 }} title="Tỉnh" />;
+            })()}
+            Thông tin tỉnh/thành phố: <span style={{ fontWeight: 800 }}>{selectedTinh}</span>
+          </div>
+          {/* Danh sách xã/phường trực thuộc tỉnh/thành đã chọn */}
+          {treeData[selectedTinh] && (
+            <div style={{ background: dark ? '#23272a' : '#f8f8f8', borderRadius: 10, padding: 18, marginBottom: 24, boxShadow: dark ? '0 2px 8px #0002' : '0 2px 8px #3aafa911' }}>
+              <div style={{ fontWeight: 700, color: dark ? '#3aafa9' : '#2b7a78', marginBottom: 10, fontSize: 17 }}>Danh sách xã/phường trực thuộc {selectedTinh}:</div>
+              <ul style={{ marginLeft: 0, marginTop: 6, marginBottom: 6, paddingLeft: 0 }}>
+                {Object.keys(treeData[selectedTinh]).sort().flatMap(huyen =>
+                  treeData[selectedTinh][huyen].sort().map(xa => {
+                    const xaNorm = xa.replace(/\s+/g, '').toLowerCase();
+                    const isPhuong = xaNorm.startsWith('phuong') || xaNorm.startsWith('p.') || /phường|phuong|p\./i.test(xa);
+                    const isXa = xaNorm.startsWith('xa') || xaNorm.startsWith('x.') || /xã|xa|x\./i.test(xa);
+                    return (
+                      <li key={xa} style={{ listStyle: 'none', color: dark ? '#eee' : '#222', fontSize: 15, display: 'flex', alignItems: 'center', gap: 7, margin: '2px 0', cursor: 'pointer', borderRadius: 4, padding: '2px 8px', transition: 'background 0.2s', background: selectedXa && selectedXa["Tên Phường/Xã mới"] === xa ? (dark ? '#3aafa955' : '#e6f2f2') : 'none' }}
+                        onClick={() => handleSelectXa(selectedTinh, huyen, xa)}
+                      >
+                        {isPhuong ? <FaHome color="#888" title="Phường" /> : isXa ? <FaRegAddressCard color="#888" title="Xã" /> : <FaRegAddressCard color="#888" title="Xã/Phường" />} {xa}
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          )}
+        </>
       )}
       {/* Chi tiết xã/phường đã chọn */}
       {tab === 0 && selectedXa && (
@@ -496,7 +542,7 @@ function App() {
                             <FaRegAddressCard color="#b23b3b" />
                             <div>
                               {item["Tên Phường/Xã cũ"] && <><b>{item["Tên Phường/Xã cũ"]}</b><br /></>}
-                              {item["Tên Quận huyện TMS (cũ)"] && <span><FaRegBuilding color="#b23b3b" style={{ marginRight: 3 }} />Huyện/Quận: {item["Tên Quận huyện TMS (cũ)"]}<br /></span>}
+                              {item["Tên Quận huyện TMS (cũ)"] && <span>Huyện/Quận: {item["Tên Quận huyện TMS (cũ)"]}<br /></span>}
                               {item["Mã Quận huyện TMS (cũ)"] && <span>Mã Quận huyện TMS (cũ): {item["Mã Quận huyện TMS (cũ)"]}<br /></span>}
                               {item["Tên tỉnh/TP cũ"] && <span><FaCity color="#b23b3b" style={{ marginRight: 3 }} />Tỉnh/TP: {item["Tên tỉnh/TP cũ"]}<br /></span>}
                               {item["Mã phường/xã cũ"] && <span>Mã xã: {item["Mã phường/xã cũ"]}</span>}
