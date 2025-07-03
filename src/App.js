@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { FaSearch, FaFileExcel, FaMapMarkerAlt, FaRegBuilding, FaRegAddressCard, FaCity, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronRight as FaRight, FaSitemap } from "react-icons/fa";
@@ -18,8 +19,13 @@ function removeVietnameseTones(str) {
 const PAGE_SIZE = 10;
 
 function App() {
+  const location = typeof window !== 'undefined' ? window.location : { search: '' };
+  const navigate = (url) => { if (typeof window !== 'undefined') window.history.pushState({}, '', url); };
   const [rawData, setRawData] = useState([]);
   const [search, setSearch] = useState("");
+  const [history, setHistory] = useState([]); // Lịch sử tra cứu
+  const [selectedTinh, setSelectedTinh] = useState(""); // Lọc nâng cao theo tỉnh
+  const [suggestions, setSuggestions] = useState([]); // Gợi ý autocomplete
   const [searchResult, setSearchResult] = useState([]);
   const [tinhList, setTinhList] = useState([]);
   const [page, setPage] = useState(1);
@@ -47,27 +53,60 @@ function App() {
         });
         setTinhList(Array.from(tinhSet).sort());
       });
+    // Đọc lịch sử từ localStorage
+    const h = localStorage.getItem('diadanh_history');
+    if (h) setHistory(JSON.parse(h));
+  }, []);
+
+  // Đọc query string khi load trang (chia sẻ link)
+  useEffect(() => {
+    if (location && location.search) {
+      const params = new URLSearchParams(location.search);
+      const s = params.get('search') || "";
+      const t = params.get('tinh') || "";
+      if (s) setSearch(s);
+      if (t) setSelectedTinh(t);
+    }
   }, []);
 
   // Đặt lại trang về 1 khi tìm kiếm
   useEffect(() => {
     setPage(1); // reset page khi search
-  }, [search]);
+    // Lưu lịch sử tra cứu chỉ khi có kết quả thực sự và có thông tin phường/xã
+    if (
+      search &&
+      search.length > 1 &&
+      searchResult.length > 0 &&
+      searchResult.every(item => (item["Tên Phường/Xã mới"] && item["Tên Phường/Xã mới"].trim()) || (item["Tên Phường/Xã cũ"] && item["Tên Phường/Xã cũ"].trim()))
+    ) {
+      setHistory(prev => {
+        const newHist = [search, ...prev.filter(x => x !== search)].slice(0, 10);
+        localStorage.setItem('diadanh_history', JSON.stringify(newHist));
+        return newHist;
+      });
+    }
+    // Cập nhật URL khi search
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (selectedTinh) params.set('tinh', selectedTinh);
+    navigate(params.toString() ? `?${params.toString()}` : location.pathname);
+  }, [search, selectedTinh, searchResult]);
 
-  // Tìm kiếm nâng cao: có dấu hoặc không dấu, tìm cả tên cũ và mới
+  // Tìm kiếm nâng cao: có dấu hoặc không dấu, tìm cả tên cũ và mới, lọc theo tỉnh
   useEffect(() => {
-    let result = [];
+    let result = rawData;
+    if (selectedTinh) {
+      result = result.filter(item => item["Tên tỉnh/TP mới"] === selectedTinh);
+    }
     if (search.length > 1) {
       const searchNoSign = removeVietnameseTones(search);
-      result = rawData.filter((item) => {
-        // Lấy các trường có thể tìm
+      result = result.filter((item) => {
         const tenXaMoi = item["Tên Phường/Xã mới"] || "";
         const tenXaCu = item["Tên Phường/Xã cũ"] || "";
         const tenHuyenMoi = item["Tên Quận huyện TMS (cũ)"] || item["Tên Quận huyện TMS (mới)"] || "";
         const tenHuyenCu = item["Tên Quận huyện TMS (cũ)"] || "";
         const tenTinhMoi = item["Tên tỉnh/TP mới"] || "";
         const tenTinhCu = item["Tên tỉnh/TP cũ"] || "";
-        // Có dấu
         const hasSign =
           tenXaMoi.toLowerCase().includes(search.toLowerCase()) ||
           tenXaCu.toLowerCase().includes(search.toLowerCase()) ||
@@ -75,7 +114,6 @@ function App() {
           tenHuyenCu.toLowerCase().includes(search.toLowerCase()) ||
           tenTinhMoi.toLowerCase().includes(search.toLowerCase()) ||
           tenTinhCu.toLowerCase().includes(search.toLowerCase());
-        // Không dấu
         const noSign =
           removeVietnameseTones(tenXaMoi).includes(searchNoSign) ||
           removeVietnameseTones(tenXaCu).includes(searchNoSign) ||
@@ -85,11 +123,33 @@ function App() {
           removeVietnameseTones(tenTinhCu).includes(searchNoSign);
         return hasSign || noSign;
       });
-    } else {
-      result = rawData;
     }
     setSearchResult(result);
     setTotalPage(Math.max(1, Math.ceil(result.length / PAGE_SIZE)));
+  }, [search, rawData, selectedTinh]);
+
+  // Gợi ý autocomplete khi nhập từ khóa
+  useEffect(() => {
+    if (search.length > 0) {
+      const searchNoSign = removeVietnameseTones(search);
+      const sugg = rawData
+        .filter(item => {
+          const tenXaMoi = item["Tên Phường/Xã mới"] || "";
+          const tenXaCu = item["Tên Phường/Xã cũ"] || "";
+          return (
+            tenXaMoi.toLowerCase().includes(search.toLowerCase()) ||
+            tenXaCu.toLowerCase().includes(search.toLowerCase()) ||
+            removeVietnameseTones(tenXaMoi).includes(searchNoSign) ||
+            removeVietnameseTones(tenXaCu).includes(searchNoSign)
+          );
+        })
+        .slice(0, 8)
+        .map(item => item["Tên Phường/Xã mới"])
+        .filter((v, i, arr) => v && arr.indexOf(v) === i);
+      setSuggestions(sugg);
+    } else {
+      setSuggestions([]);
+    }
   }, [search, rawData]);
 
   // Xuất Excel
@@ -152,14 +212,45 @@ function App() {
           © {new Date().getFullYear()} <a href="https://phongtuc.vn" target="_blank" rel="noopener noreferrer" style={{ color: '#3aafa9', textDecoration: 'none', fontWeight: 600 }}>Phong Tục</a>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+      {/* Lịch sử tra cứu */}
+      {history.length > 0 && (
+        <div style={{ marginBottom: 10, fontSize: 14, color: '#888', width: '100%' }}>
+          <span style={{ fontWeight: 600 }}>Lịch sử tra cứu:</span>
+          {history.map((h, i) => (
+            <button key={i} style={{ margin: '0 6px 6px 0', background: '#f0f0f0', border: '1px solid #ccc', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }}
+              onClick={() => setSearch(h)}>{h}</button>
+          ))}
+        </div>
+      )}
         <FaSearch color="#3aafa9" size={22} />
-        <input
-          placeholder="Nhập tên phường/xã, huyện, tỉnh... (có dấu hoặc không dấu, cũ hoặc mới)"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: 350, fontSize: 18, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            placeholder="Nhập tên phường/xã, huyện, tỉnh... (có dấu hoặc không dấu, cũ hoặc mới)"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: 350, fontSize: 18, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
+            autoComplete="off"
+          />
+          {suggestions.length > 0 && (
+            <ul style={{ position: 'absolute', top: 38, left: 0, right: 0, background: '#fff', border: '1px solid #ccc', borderRadius: 6, zIndex: 10, maxHeight: 180, overflowY: 'auto', margin: 0, padding: 0 }}>
+              {suggestions.map((s, i) => (
+                <li key={i} style={{ padding: 8, cursor: 'pointer', listStyle: 'none', borderBottom: '1px solid #eee' }}
+                  onClick={() => { setSearch(s); setSuggestions([]); }}
+                >{s}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <select value={selectedTinh} onChange={e => setSelectedTinh(e.target.value)} style={{ fontSize: 16, padding: 8, borderRadius: 6, border: '1px solid #ccc', minWidth: 160 }}>
+          <option value="">-- Lọc theo tỉnh/thành --</option>
+          {tinhList.map(tinh => (
+            <option key={tinh} value={tinh}>{tinh}</option>
+          ))}
+        </select>
+        {selectedTinh && (
+          <button onClick={() => setSelectedTinh("")} style={{ marginLeft: 4, background: '#eee', border: 'none', borderRadius: 4, padding: '6px 10px', cursor: 'pointer' }}>Xóa lọc</button>
+        )}
       </div>
       {(!search || search.length <= 1) && (
         <div style={{ marginBottom: 24 }}>
