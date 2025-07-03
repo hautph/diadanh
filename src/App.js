@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Helmet } from "react-helmet";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { FaFileExcel, FaRegAddressCard, FaCity, FaChevronLeft, FaChevronRight, FaSitemap, FaHome, FaRegBuilding } from "react-icons/fa";
@@ -286,12 +287,35 @@ function App() {
   // RETURN DUY NHẤT, JSX CHUẨN HÓA
   return (
     <>
-      {/* SEO META TAGS */}
-      <head>
-        <title>Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, huyện quận, tỉnh thành</title>
-        <meta name="description" content="Tra cứu địa danh Việt Nam: xã, phường, huyện, quận, tỉnh, thành phố. Tìm kiếm nhanh, xuất Excel, lưu yêu thích. Dữ liệu hành chính mới nhất 2025." />
-        <meta name="keywords" content="tra cứu địa danh, xã phường, huyện quận, tỉnh thành, địa danh Việt Nam, xuất excel, tìm kiếm địa danh, dữ liệu hành chính, hành chính Việt Nam, địa giới hành chính, địa chỉ, tra cứu xã phường, bản đồ hành chính, địa danh 2025" />
-      </head>
+      {/* SEO META TAGS, SOCIAL SHARE & GOOGLE ANALYTICS */}
+      <Helmet>
+        <title>Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, tỉnh thành mới nhất 2025</title>
+        <meta name="title" content="Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, tỉnh thành mới nhất 2025" />
+        <meta name="description" content="Tra cứu địa danh Việt Nam: xã, phường, tỉnh, thành phố. Tìm kiếm nhanh, lưu yêu thích, dữ liệu hành chính mới nhất 2025." />
+        <meta name="keywords" content="tra cứu địa danh, xã phường, tỉnh thành, địa danh Việt Nam, tìm kiếm địa danh, dữ liệu hành chính, hành chính Việt Nam, địa giới hành chính, địa chỉ, tra cứu xã phường, bản đồ hành chính, địa danh 2025" />
+        <meta name="robots" content="index, follow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://tracuu.phongtuc.vn" />
+        <meta property="og:title" content="Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, tỉnh thành mới nhất 2025" />
+        <meta property="og:description" content="Tra cứu địa danh Việt Nam: xã, phường, tỉnh, thành phố. Tìm kiếm nhanh, lưu yêu thích, dữ liệu hành chính mới nhất 2025." />
+        <meta property="og:image" content="https://tracuu.phongtuc.vnlogo512.png" />
+        <meta property="og:site_name" content="Tra cứu Địa danh Việt Nam" />
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Tra cứu Địa danh Việt Nam - Tìm kiếm xã phường, tỉnh thành mới nhất 2025" />
+        <meta name="twitter:description" content="Tra cứu địa danh Việt Nam: xã, phường, tỉnh, thành phố. Tìm kiếm nhanh, lưu yêu thích, dữ liệu hành chính mới nhất 2025." />
+        <meta name="twitter:image" content="https://tracuu.phongtuc.vnlogo512.png" />
+        {/* Google Analytics */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-SBV2G9WRGP"></script>
+        <script>{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-SBV2G9WRGP');
+        `}</script>
+      </Helmet>
       <div className="main-wrap" style={{ maxWidth: 900, margin: '0 auto', padding: 0, background: dark ? '#181a1b' : '#f9f9f9', borderRadius: 18, boxShadow: '0 4px 32px #0002', overflow: 'hidden' }}>
         {/* HEADER HIỆN ĐẠI */}
         <header style={{
